@@ -15,24 +15,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+
 const allowedOrigins = [
   "http://localhost:5173",
   "https://quickzy-frontend.vercel.app"
 ];
 
-//cors policy
-
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-
+  origin: allowedOrigins,
   credentials: true,
 }));
+
+
 
 // app.use("/", userRoutes);
 // app.use("/products", productRoutes);

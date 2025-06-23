@@ -28,25 +28,22 @@ routes.get('/profile', verifyTokenMiddleware, getUserProfile);
 
 routes.get('/me', verifyTokenMiddleware, async (req, res) => {
   try {
-  
-    const user = await userModel.findById(req.userId).select('username email admin mobile gender');
-    
+    const user = await userModel.findById(req.user.id).select('-password');
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
-    // Transform the admin boolean to role string for frontend compatibility
-    const userData = {
-      ...user.toObject(),
-      role: user.admin ? 'admin' : 'user'
-    };
-    
-    res.json(userData);
+    return res.status(200).json({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      admin: user.admin,
+    });
   } catch (error) {
-    console.error('Error in /me route:', error);
-    res.status(500).json({ error: "Server error" });
+    console.error("Error in /me route:", error);
+    return res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 

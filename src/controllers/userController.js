@@ -112,14 +112,13 @@ export const loginUserController = async (req, res) => {
       { expiresIn: '7d' }
     );
 
- 
+
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,        
-      sameSite: 'None',     
-      maxAge: 7 * 24 * 60 * 60 * 1000 
+      secure: true,
+      sameSite: 'None',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
-
     return res.status(200).json({
       message: "Login successful",
       user: {
@@ -128,7 +127,9 @@ export const loginUserController = async (req, res) => {
         email: userExist.email,
         admin: userExist.admin,
       },
+      token,
     });
+
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ error: "Server error", details: error.message });
