@@ -20,6 +20,8 @@ const allowedOrigins = [
   "https://quickzy-frontend.vercel.app"
 ];
 
+//cors policy
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -28,11 +30,17 @@ app.use(cors({
       callback(new Error("Not allowed by CORS"));
     }
   },
+
   credentials: true,
 }));
+
+// app.use("/", userRoutes);
+// app.use("/products", productRoutes);
+// app.use("/cart", cartRoutes);
 
 app.use("/", userRoutes);
 app.use("/products", productRoutes);
 app.use("/cart", cartRoutes);
+
 
 export default app;
