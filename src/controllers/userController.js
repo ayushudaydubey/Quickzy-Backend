@@ -87,36 +87,38 @@ export const registerUserController = async (req, res) => {
 
 export const loginUserController = async (req, res) => {
   try {
-    // console.log('Login request body:', req.body); // Debug line
+    const { email, password } = req.body;
 
-    const { email, password } = req.body
-
- 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const userExist = await userModel.findOne({ email })
+    const userExist = await userModel.findOne({ email });
     if (!userExist) {
-      return res.status(401).json({ error: "Invalid credentials" })
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const verifyUser = await bcrypt.compare(password, userExist.password)
+    const verifyUser = await bcrypt.compare(password, userExist.password);
     if (!verifyUser) {
-      return res.status(401).json({ error: "Invalid credentials" })
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const token = jwt.sign({
-      id: userExist._id,
-      role: userExist.admin ? 'admin' : 'user' // <-- add this line
-    }, process.env.JWT_KEY, { expiresIn: '7d' })
+    const token = jwt.sign(
+      {
+        id: userExist._id,
+        role: userExist.admin ? 'admin' : 'user'
+      },
+      process.env.JWT_KEY,
+      { expiresIn: '7d' }
+    );
 
+ 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax', // Or 'None' with secure:true for cross-site cookies
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    })
+      secure: true,        
+      sameSite: 'None',     
+      maxAge: 7 * 24 * 60 * 60 * 1000 
+    });
 
     return res.status(200).json({
       message: "Login successful",
@@ -128,10 +130,11 @@ export const loginUserController = async (req, res) => {
       },
     });
   } catch (error) {
-    console.log("Login error:", error);
+    console.error("Login error:", error);
     return res.status(500).json({ error: "Server error", details: error.message });
   }
-}
+};
+
 
 export const logoutController = (req, res) => {
   res.clearCookie("token")
