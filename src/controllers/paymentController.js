@@ -26,7 +26,7 @@ export const createOrderController = async (req, res) => {
     await Payment.create({
       orderId: order.id,
       userId: req.user?.id || undefined,
-      amount: order.amount,
+      amount: order.amount/100,
       currency: order.currency,
       status: 'pending',
       meta,
