@@ -28,12 +28,15 @@ product_routes.get('/:id', async (req, res) => {
 // Create product (Admin only)
 product_routes.post('/', isAdmin, async (req, res) => {
   try {
-    const { title, description, image, price } = req.body;
-    const newProduct = new Product({ title, description, image, price });
+    const { title, description, image, price, category } = req.body;
+    const newProduct = new Product({ title, description, image, price, category });
     await newProduct.save();
     res.status(201).json(newProduct);
   } catch (err) {
-    res.status(400).json({ message: "Failed to create product." });
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: "Validation failed", errors: err.errors, detail: err.message });
+    }
+    res.status(500).json({ message: "Failed to create product.", error: err.message });
   }
 });
 
@@ -47,7 +50,10 @@ product_routes.put('/:id', isAdmin, async (req, res) => {
     if (!updatedProduct) return res.status(404).json({ message: "Product not found" });
     res.json(updatedProduct);
   } catch (err) {
-    res.status(400).json({ message: "Failed to update product." });
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: "Validation failed", errors: err.errors, detail: err.message });
+    }
+    res.status(500).json({ message: "Failed to update product.", error: err.message });
   }
 });
 
