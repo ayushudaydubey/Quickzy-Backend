@@ -1,5 +1,6 @@
 import CartModel from "../models/cart.js";
 import orderModel from "../models/orderModel.js";
+import Product from "../models/products.js";
 
 export const cartController  =  async (req, res) => {
   const userId = req.user.id;
@@ -62,7 +63,6 @@ export const createOrderController = async (req, res) => {
   }
 };
 
-// routes/orderRoutes.js
 export const myOrder = async (req, res) => {
   try {
     const orders = await orderModel.find({ userId: req.user.id })
@@ -73,5 +73,27 @@ export const myOrder = async (req, res) => {
   } catch (error) {
     console.error('Failed to fetch orders:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+export const searchProduct = async (req, res) => {
+  try {
+    const { search, category } = req.query;
+    const filter = {};
+
+    if (search) {
+      filter.title = { $regex: search, $options: 'i' }; // case-insensitive partial match
+    }
+
+    if (category) {
+      filter.category = category;
+    }
+
+    const products = await Product.find(filter);
+    res.json(products);
+  } catch (err) {
+    console.error('Failed to fetch products', err);
+    res.status(500).json({ message: "Failed to fetch products." });
   }
 };

@@ -1,15 +1,29 @@
 import express from 'express';
 import Product from '../models/products.js';
 import isAdmin from '../middelware/isAdmin.js';
+import { searchProduct } from '../controllers/productController.js';
 
 const product_routes = express.Router();
 
-// Get all products (Public)
+// Get all products (Public) -- now supports ?search=term and ?category=CategoryName
 product_routes.get('/', async (req, res) => {
   try {
-    const products = await Product.find();
+    const { search, category } = req.query;
+    const filter = {};
+
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      // case-insensitive partial match on title
+      filter.title = { $regex: search.trim(), $options: 'i' };
+    }
+
+    if (category && typeof category === 'string' && category.trim() !== '') {
+      filter.category = category.trim();
+    }
+
+    const products = await Product.find(filter);
     res.json(products);
   } catch (err) {
+    console.error('Failed to fetch products', err);
     res.status(500).json({ message: "Failed to fetch products." });
   }
 });
@@ -67,5 +81,7 @@ product_routes.delete('/:id', isAdmin, async (req, res) => {
     res.status(500).json({ message: "Server error while deleting product" });
   }
 });
+
+// product_routes.get("/find-product",searchProduct)
 
 export default product_routes;
