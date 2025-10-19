@@ -5,7 +5,7 @@ import {
   logoutController,
   adminController,
   getUserProfile,
- 
+  updateUserProfile,
 } from '../controllers/userController.js'
 import { verifyTokenMiddleware } from '../middelware/Auth.js'
 import jwt from 'jsonwebtoken';
@@ -23,6 +23,18 @@ routes.post("/admin",verifyTokenMiddleware,adminController)
 // routes.get("/profile", verifyTokenMiddleware, getUserProfile)
 
 routes.get('/profile', verifyTokenMiddleware, getUserProfile);
+
+// Update the authenticated user's profile
+routes.put('/profile', verifyTokenMiddleware, async (req, res) => {
+  // delegate to controller method
+  try {
+    // reuse controller function
+    await updateUserProfile(req, res);
+  } catch (err) {
+    console.error('PUT /profile error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // Express.js example
 

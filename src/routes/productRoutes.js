@@ -1,7 +1,10 @@
+
 import express from 'express';
 import Product from '../models/products.js';
 import isAdmin from '../middelware/isAdmin.js';
 import { searchProduct } from '../controllers/productController.js';
+import { upload } from '../services/multerConfig.js';
+import cloudinary from '../services/cloudneryService.js';
 
 const product_routes = express.Router();
 
@@ -39,11 +42,26 @@ product_routes.get('/:id', async (req, res) => {
   }
 });
 
-// Create product (Admin only)
-product_routes.post('/', isAdmin, async (req, res) => {
+// Create product (Admin only, with multiple images)
+product_routes.post('/', isAdmin, upload.array('images', 5), async (req, res) => {
   try {
-    const { title, description, image, price, category } = req.body;
-    const newProduct = new Product({ title, description, image, price, category });
+    const { title, description, price, category } = req.body;
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'At least one image is required.' });
+    }
+
+    // Upload each image buffer to Cloudinary
+    const uploadPromises = req.files.map(file => {
+      return new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream({ folder: 'products', resource_type: 'image' }, (err, result) => {
+          if (err) return reject(err);
+          resolve(result.secure_url);
+        }).end(file.buffer);
+      });
+    });
+    const imageUrls = await Promise.all(uploadPromises);
+
+    const newProduct = new Product({ title, description, images: imageUrls, price, category });
     await newProduct.save();
     res.status(201).json(newProduct);
   } catch (err) {

@@ -154,6 +154,35 @@ export const getUserProfile = async (req, res) => {
   }
 }
 
+// Update profile of authenticated user
+export const updateUserProfile = async (req, res) => {
+  try {
+    const user = await userModel.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const updatableFields = ['username','email','mobile','dateOfBirth','gender','address','city','state','zipCode','country'];
+    updatableFields.forEach(field => {
+      if (req.body[field] !== undefined) user[field] = req.body[field];
+    });
+
+    // handle password update explicitly
+    if (req.body.password) {
+      const hashed = await bcrypt.hash(req.body.password, 10);
+      user.password = hashed;
+    }
+
+    await user.save();
+
+    const returned = user.toObject();
+    delete returned.password;
+
+    return res.status(200).json({ message: 'Profile updated', user: returned });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+}
+
 export const adminController = async (req, res) => {
   try {
     const token = req.cookies.token;
