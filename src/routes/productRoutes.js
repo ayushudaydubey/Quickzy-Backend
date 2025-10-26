@@ -72,10 +72,33 @@ product_routes.post('/', isAdmin, upload.array('images', 5), async (req, res) =>
   }
 });
 
-// Update product (Admin only)
-product_routes.put('/:id', isAdmin, async (req, res) => {
+// Update product (Admin only) - supports optional new images upload
+product_routes.put('/:id', isAdmin, upload.array('images', 5), async (req, res) => {
   try {
-    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, {
+    const { title, description, price, category } = req.body;
+
+    // Build update object only with provided fields
+    const updateFields = {};
+    if (typeof title !== 'undefined') updateFields.title = title;
+    if (typeof description !== 'undefined') updateFields.description = description;
+    if (typeof price !== 'undefined') updateFields.price = price;
+    if (typeof category !== 'undefined') updateFields.category = category;
+
+    // If new image files were uploaded, upload them to Cloudinary and set images
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map(file => {
+        return new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream({ folder: 'products', resource_type: 'image' }, (err, result) => {
+            if (err) return reject(err);
+            resolve(result.secure_url);
+          }).end(file.buffer);
+        });
+      });
+      const imageUrls = await Promise.all(uploadPromises);
+      updateFields.images = imageUrls;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateFields, {
       new: true,
       runValidators: true
     });
@@ -85,6 +108,7 @@ product_routes.put('/:id', isAdmin, async (req, res) => {
     if (err.name === 'ValidationError') {
       return res.status(400).json({ message: "Validation failed", errors: err.errors, detail: err.message });
     }
+    console.error('Failed to update product', err);
     res.status(500).json({ message: "Failed to update product.", error: err.message });
   }
 });
