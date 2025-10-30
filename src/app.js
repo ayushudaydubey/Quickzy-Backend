@@ -34,6 +34,7 @@ app.use(cors({
 // app.use("/products", productRoutes);
 // app.use("/cart", cartRoutes);
 
+
 app.use("/", userRoutes);
 app.use("/products", productRoutes);
 app.use("/cart", cartRoutes);
