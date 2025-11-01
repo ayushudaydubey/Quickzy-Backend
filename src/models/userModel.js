@@ -2,10 +2,11 @@ import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema(
   {
-    username: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true },
-    mobile: { type: String, required: true },
+  username: { type: String, required: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true },
+  // password and mobile are optional to support OAuth-only users
+  password: { type: String, required: false },
+  mobile: { type: String, required: false },
     gender: { type: String, enum: ['male', 'female', 'other'], default: 'male' },
     dateOfBirth: { type: Date },
     address: { type: String },
