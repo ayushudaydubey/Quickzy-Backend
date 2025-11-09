@@ -1,6 +1,7 @@
 import CartModel from "../models/cart.js";
 import orderModel from "../models/orderModel.js";
 import Product from "../models/products.js";
+import User from "../models/userModel.js";
 
 export const cartController  =  async (req, res) => {
   const userId = req.user.id;
@@ -95,5 +96,74 @@ export const searchProduct = async (req, res) => {
   } catch (err) {
     console.error('Failed to fetch products', err);
     res.status(500).json({ message: "Failed to fetch products." });
+  }
+};
+
+export const getCartController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const cart = await CartModel.findOne({ userId }).populate('items.productId', 'title price images');
+    if (!cart) return res.status(200).json({ items: [] });
+    return res.status(200).json({ items: cart.items });
+  } catch (err) {
+    console.error('getCartController error', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Wishlist controllers
+export const getWishlistController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+  const user = await User.findById(userId).populate('wishlist', 'title price images description');
+    if (!user) return res.status(200).json({ items: [] });
+    return res.status(200).json({ items: user.wishlist || [] });
+  } catch (err) {
+    console.error('getWishlistController error', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const addToWishlistController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { productId } = req.body;
+    if (!productId) return res.status(400).json({ message: 'productId is required' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const exists = (user.wishlist || []).some((p) => String(p) === String(productId));
+    if (!exists) {
+      user.wishlist = user.wishlist || [];
+      user.wishlist.push(productId);
+      await user.save();
+    }
+
+  const populated = await User.findById(userId).populate('wishlist', 'title price images description');
+    return res.status(200).json({ items: populated.wishlist || [] });
+  } catch (err) {
+    console.error('addToWishlistController error', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const removeFromWishlistController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { productId } = req.params;
+    if (!productId) return res.status(400).json({ message: 'productId is required' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.wishlist = (user.wishlist || []).filter((p) => String(p) !== String(productId));
+    await user.save();
+
+  const populated = await User.findById(userId).populate('wishlist', 'title price images description');
+    return res.status(200).json({ items: populated.wishlist || [] });
+  } catch (err) {
+    console.error('removeFromWishlistController error', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
