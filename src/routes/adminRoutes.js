@@ -23,6 +23,17 @@ admin_router.get('/orders', verifyTokenMiddleware, isAdmin, async (req, res) => 
   }
 });
 
+// Get all users (admin)
+admin_router.get('/users', verifyTokenMiddleware, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({}).select('username email mobile admin createdAt updatedAt');
+    res.status(200).json({ users });
+  } catch (err) {
+    console.error('admin /users error', err);
+    res.status(500).json({ message: 'Failed to fetch users' });
+  }
+});
+
 // Get all payments (admin) with user info
 admin_router.get('/payments', verifyTokenMiddleware, isAdmin, async (req, res) => {
   try {
