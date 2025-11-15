@@ -16,8 +16,6 @@ const userSchema = new mongoose.Schema(
     country: { type: String },
     admin: { type: Boolean, default: false },
     cart: { type: Array, default: [] },
-    // wishlist stores product ids the user has wishlisted
-    wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
   },
   { timestamps: true }
 );

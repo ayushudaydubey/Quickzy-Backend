@@ -32,6 +32,8 @@ export const cartController  =  async (req, res) => {
 
 
     await cart.save();
+    // populate product info for frontend convenience
+    await cart.populate('items.productId', 'title price images');
     return res.status(200).json(cart);
   } catch (err) {
     console.error('cartController error:', err);
@@ -111,59 +113,25 @@ export const getCartController = async (req, res) => {
   }
 };
 
-// Wishlist controllers
-export const getWishlistController = async (req, res) => {
-  try {
-    const userId = req.user.id;
-  const user = await User.findById(userId).populate('wishlist', 'title price images description');
-    if (!user) return res.status(200).json({ items: [] });
-    return res.status(200).json({ items: user.wishlist || [] });
-  } catch (err) {
-    console.error('getWishlistController error', err);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
-
-export const addToWishlistController = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { productId } = req.body;
-    if (!productId) return res.status(400).json({ message: 'productId is required' });
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const exists = (user.wishlist || []).some((p) => String(p) === String(productId));
-    if (!exists) {
-      user.wishlist = user.wishlist || [];
-      user.wishlist.push(productId);
-      await user.save();
-    }
-
-  const populated = await User.findById(userId).populate('wishlist', 'title price images description');
-    return res.status(200).json({ items: populated.wishlist || [] });
-  } catch (err) {
-    console.error('addToWishlistController error', err);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
-
-export const removeFromWishlistController = async (req, res) => {
+// Remove product from cart (by productId)
+export const removeFromCartController = async (req, res) => {
   try {
     const userId = req.user.id;
     const { productId } = req.params;
     if (!productId) return res.status(400).json({ message: 'productId is required' });
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const cart = await CartModel.findOne({ userId });
+    if (!cart) return res.status(200).json({ items: [] });
 
-    user.wishlist = (user.wishlist || []).filter((p) => String(p) !== String(productId));
-    await user.save();
-
-  const populated = await User.findById(userId).populate('wishlist', 'title price images description');
-    return res.status(200).json({ items: populated.wishlist || [] });
+    // remove all entries matching productId
+    cart.items = (cart.items || []).filter((it) => String(it.productId) !== String(productId));
+    await cart.save();
+    await cart.populate('items.productId', 'title price images');
+    return res.status(200).json({ items: cart.items });
   } catch (err) {
-    console.error('removeFromWishlistController error', err);
+    console.error('removeFromCartController error', err);
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
+// wishlist functionality removed
