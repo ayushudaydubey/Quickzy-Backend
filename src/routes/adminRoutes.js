@@ -145,4 +145,39 @@ admin_router.put('/orders/:id/status', verifyTokenMiddleware, isAdmin, async (re
   }
 });
 
+// Update expected delivery date for an order (admin)
+admin_router.put('/orders/:id/delivery', verifyTokenMiddleware, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { expectedDeliveryDate } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    order.expectedDeliveryDate = expectedDeliveryDate ? new Date(expectedDeliveryDate) : null;
+    // mark that admin explicitly set ETA
+    order.adminSetEta = !!expectedDeliveryDate;
+    order.etaUpdatedAt = expectedDeliveryDate ? new Date() : undefined;
+    order.etaNotified = false; // user not yet notified
+
+    // add delivery log entry for admin ETA change
+    order.deliveryLogs = order.deliveryLogs || [];
+    order.deliveryLogs.push({
+      status: 'eta-set',
+      note: expectedDeliveryDate ? `Expected delivery set to ${new Date(expectedDeliveryDate).toLocaleString()}` : 'Expected delivery cleared',
+      timestamp: new Date(),
+    });
+
+    await order.save();
+
+    const populated = await Order.findById(order._id)
+      .populate('userId', 'username email mobile address city state zipCode')
+      .populate('productId', 'title price image category');
+
+    res.status(200).json({ message: 'Expected delivery date updated', order: populated });
+  } catch (err) {
+    console.error('admin update expectedDeliveryDate error', err);
+    res.status(500).json({ message: 'Failed to update expected delivery date' });
+  }
+});
+
 export default admin_router;

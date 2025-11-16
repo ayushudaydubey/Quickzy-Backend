@@ -34,6 +34,12 @@ const productSchema = new mongoose.Schema({
     required: true,
   },
 
+  // Optional estimated delivery lead time in days (admin/product level)
+  estimatedDeliveryDays: {
+    type: Number,
+    default: 3,
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,

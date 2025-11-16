@@ -35,6 +35,24 @@ cartRoutes.post('/create', verifyTokenMiddleware, createOrderController);
 
 cartRoutes.get('/orders', verifyTokenMiddleware,myOrder)
 
+// Acknowledge ETA notification for an order (user calls this to mark notified)
+cartRoutes.put('/orders/:id/ack-eta', verifyTokenMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await (await import('../models/orderModel.js')).default.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    // ensure the order belongs to the current user
+    if (String(order.userId) !== String(req.user.id)) return res.status(403).json({ message: 'Not authorized' });
+
+    order.etaNotified = true;
+    await order.save();
+    return res.status(200).json({ message: 'Acknowledged' });
+  } catch (err) {
+    console.error('ack-eta error', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 
  export default cartRoutes

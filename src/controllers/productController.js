@@ -48,6 +48,21 @@ export const createOrderController = async (req, res) => {
   try {
     const { productId, quantity, customer, total } = req.body;
 
+    // compute expected delivery date: prefer explicit value from request, else product.estimatedDeliveryDays, else default 7 days
+    let expectedDeliveryDate = null;
+    const adminProvidedDate = req.body.expectedDeliveryDate;
+    if (adminProvidedDate) {
+      expectedDeliveryDate = new Date(req.body.expectedDeliveryDate);
+    } else {
+      try {
+        const prod = await Product.findById(productId).select('estimatedDeliveryDays');
+        const days = (prod && prod.estimatedDeliveryDays) ? Number(prod.estimatedDeliveryDays) : 7;
+        expectedDeliveryDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      } catch (err) {
+        expectedDeliveryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      }
+    }
+
     const order = new orderModel({
       userId: req.user.id,
       productId,
@@ -55,6 +70,10 @@ export const createOrderController = async (req, res) => {
       customer,
       total,
       status: 'pending',
+      expectedDeliveryDate,
+      adminSetEta: !!adminProvidedDate,
+      etaUpdatedAt: adminProvidedDate ? new Date() : undefined,
+      etaNotified: false,
     });
 
     await order.save();

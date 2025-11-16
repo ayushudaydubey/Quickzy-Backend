@@ -27,6 +27,13 @@ const orderSchema = new mongoose.Schema({
   deliveryAttempts: { type: Number, default: 0 },
   deliveryLogs: [deliveryLogSchema],
   deliveredAt: { type: Date },
+  expectedDeliveryDate: { type: Date },
+  // Whether ETA was explicitly set by an admin
+  adminSetEta: { type: Boolean, default: false },
+  // When ETA was last updated by admin
+  etaUpdatedAt: { type: Date },
+  // Whether the user has been notified of the ETA change
+  etaNotified: { type: Boolean, default: false },
 }, {
   timestamps: true,
 });
