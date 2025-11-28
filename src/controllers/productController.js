@@ -2,6 +2,7 @@ import CartModel from "../models/cart.js";
 import orderModel from "../models/orderModel.js";
 import Product from "../models/products.js";
 import User from "../models/userModel.js";
+import Notification from "../models/notification.js";
 
 export const cartController  =  async (req, res) => {
   const userId = req.user.id;
@@ -88,7 +89,7 @@ export const createOrderController = async (req, res) => {
 export const myOrder = async (req, res) => {
   try {
     const orders = await orderModel.find({ userId: req.user.id })
-      .populate('productId', 'title description image price') 
+      .populate('productId', 'title description images price') 
       .sort({ createdAt: -1 });
 
     res.status(200).json({ orders });
@@ -154,3 +155,67 @@ export const removeFromCartController = async (req, res) => {
 };
 
 // wishlist functionality removed
+
+export const cancelOrderController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+
+    const order = await orderModel.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // ensure the order belongs to the current user
+    if (String(order.userId) !== String(req.user.id)) return res.status(403).json({ message: 'Not authorized' });
+
+    if (order.canceled) return res.status(400).json({ message: 'Order already canceled' });
+
+    // disallow cancellation after shipping/delivery
+    if (['shipped', 'out-for-delivery', 'delivered'].includes(order.status)) {
+      return res.status(400).json({ message: 'Cannot cancel order after it has been shipped/delivered' });
+    }
+
+    // allow cancellation only within 24 hours of creation
+    const createdAt = order.createdAt ? new Date(order.createdAt).getTime() : null;
+    if (!createdAt) return res.status(400).json({ message: 'Invalid order date' });
+
+    const msSince = Date.now() - createdAt;
+    const windowMs = 24 * 60 * 60 * 1000; // 24 hours
+    if (msSince > windowMs) return res.status(400).json({ message: 'Cancellation window (24 hours) has expired' });
+
+    order.canceled = true;
+    order.canceledAt = new Date();
+    order.cancellationReason = reason || '';
+    order.canceledBy = 'user';
+    order.canceledById = req.user.id;
+    order.status = 'canceled';
+
+    order.deliveryLogs = order.deliveryLogs || [];
+    order.deliveryLogs.push({
+      status: 'canceled',
+      note: reason || 'Canceled by user within allowed window',
+      timestamp: new Date(),
+    });
+
+    await order.save();
+
+    // Create a notification record for admins so they can process refunds
+    try {
+      const expectedRefundDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      await Notification.create({
+        type: 'cancellation',
+        orderId: order._id,
+        userId: order.userId,
+        productId: order.productId,
+        message: `User canceled order ${order._id}. Refund expected within 5-7 business days.`,
+        expectedRefundDate,
+      });
+    } catch (notifyErr) {
+      console.error('Failed to create admin notification for cancellation', notifyErr);
+    }
+
+    return res.status(200).json({ message: 'Order canceled successfully', order });
+  } catch (err) {
+    console.error('cancelOrderController error', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};

@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema({
   total: Number,
   status: {
     type: String,
-    enum: ['pending', 'paid', 'shipped', 'out-for-delivery', 'delivered', 'failed'],
+    enum: ['pending', 'paid', 'shipped', 'out-for-delivery', 'delivered', 'failed', 'canceled'],
     default: 'pending',
   },
   // Added fields for admin delivery tracking
@@ -28,6 +28,12 @@ const orderSchema = new mongoose.Schema({
   deliveryLogs: [deliveryLogSchema],
   deliveredAt: { type: Date },
   expectedDeliveryDate: { type: Date },
+  // Cancellation info
+  canceled: { type: Boolean, default: false },
+  canceledAt: { type: Date },
+  cancellationReason: { type: String },
+  canceledBy: { type: String, enum: ['user', 'admin'] },
+  canceledById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Whether ETA was explicitly set by an admin
   adminSetEta: { type: Boolean, default: false },
   // When ETA was last updated by admin

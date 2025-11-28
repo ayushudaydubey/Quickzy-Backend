@@ -26,16 +26,19 @@ export const createOrderController = async (req, res) => {
     await Payment.create({
       orderId: order.id,
       userId: req.user?.id || undefined,
-      amount: order.amount/100,
+      amount: order.amount / 100,
       currency: order.currency,
       status: 'pending',
       meta,
     });
 
-    return res.status(201).json(order);
+    // Return the order and the public key_id so the frontend uses the same key
+    return res.status(201).json({ order, key_id: process.env.RAZORPAY_KEY_ID });
   } catch (err) {
     console.error('createOrderController error', err);
-    return res.status(500).json({ error: 'Could not create order', details: err.message });
+    // Include any Razorpay error details when available to aid debugging
+    const details = err && (err.error || err.description || err.message) ? (err.error || err.description || err.message) : err;
+    return res.status(500).json({ error: 'Could not create order', details });
   }
 };
 

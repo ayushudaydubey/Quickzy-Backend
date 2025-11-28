@@ -5,6 +5,7 @@ import Order from '../models/orderModel.js';
 import User from '../models/userModel.js';
 import Product from '../models/products.js';
 import Payment from '../models/paymentModel.js';
+import Notification from '../models/notification.js';
 
 const admin_router = express.Router();
 
@@ -13,7 +14,7 @@ admin_router.get('/orders', verifyTokenMiddleware, isAdmin, async (req, res) => 
   try {
     const orders = await Order.find({})
       .populate('userId', 'username email mobile address city state zipCode')
-      .populate('productId', 'title price image category')
+      .populate('productId', 'title price images category')
       .sort({ createdAt: -1 });
 
     res.status(200).json({ orders });
@@ -69,6 +70,40 @@ admin_router.get('/payments', verifyTokenMiddleware, isAdmin, async (req, res) =
   } catch (err) {
     console.error('admin /payments error', err);
     res.status(500).json({ message: 'Failed to fetch payments' });
+  }
+});
+
+// Get admin notifications (cancellations, refunds, etc.)
+admin_router.get('/notifications', verifyTokenMiddleware, isAdmin, async (req, res) => {
+  try {
+    const notifications = await Notification.find({}).sort({ createdAt: -1 })
+      .populate('userId', 'username email mobile')
+      .populate('productId', 'title price images')
+      .populate('orderId');
+
+    res.status(200).json({ notifications });
+  } catch (err) {
+    console.error('admin /notifications error', err);
+    res.status(500).json({ message: 'Failed to fetch notifications' });
+  }
+});
+
+// Mark a notification as processed (refund completed)
+admin_router.put('/notifications/:id/process', verifyTokenMiddleware, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const n = await Notification.findById(id);
+    if (!n) return res.status(404).json({ message: 'Notification not found' });
+
+    n.status = 'read';
+    n.refundProcessed = true;
+    n.refundProcessedAt = new Date();
+    await n.save();
+
+    res.status(200).json({ message: 'Notification marked processed', notification: n });
+  } catch (err) {
+    console.error('admin /notifications/:id/process error', err);
+    res.status(500).json({ message: 'Failed to process notification' });
   }
 });
 
@@ -136,7 +171,7 @@ admin_router.put('/orders/:id/status', verifyTokenMiddleware, isAdmin, async (re
 
     const populated = await Order.findById(order._id)
       .populate('userId', 'username email mobile address city state zipCode')
-      .populate('productId', 'title price image category');
+      .populate('productId', 'title price images category');
 
     res.status(200).json({ message: 'Order updated', order: populated });
   } catch (err) {
@@ -171,7 +206,7 @@ admin_router.put('/orders/:id/delivery', verifyTokenMiddleware, isAdmin, async (
 
     const populated = await Order.findById(order._id)
       .populate('userId', 'username email mobile address city state zipCode')
-      .populate('productId', 'title price image category');
+      .populate('productId', 'title price images category');
 
     res.status(200).json({ message: 'Expected delivery date updated', order: populated });
   } catch (err) {
@@ -181,3 +216,4 @@ admin_router.put('/orders/:id/delivery', verifyTokenMiddleware, isAdmin, async (
 });
 
 export default admin_router;
+
