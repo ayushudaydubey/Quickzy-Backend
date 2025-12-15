@@ -5,6 +5,7 @@ import Order from '../models/orderModel.js';
 import User from '../models/userModel.js';
 import Product from '../models/products.js';
 import Payment from '../models/paymentModel.js';
+import { sendDeliveryEmail } from '../services/nodemailer.js';
 
 const admin_router = express.Router();
 
@@ -172,6 +173,20 @@ admin_router.put('/orders/:id/delivery', verifyTokenMiddleware, isAdmin, async (
     const populated = await Order.findById(order._id)
       .populate('userId', 'username email mobile address city state zipCode')
       .populate('productId', 'title price image category');
+
+    // send email notification to user about confirmed delivery date
+    try {
+      const userEmail = populated.userId?.email;
+      if (userEmail && expectedDeliveryDate) {
+        // pass populated.productId so email can include product name and price
+        await sendDeliveryEmail(userEmail, populated._id, expectedDeliveryDate, populated.productId);
+        // mark that user was notified by email
+        order.etaNotified = true;
+        await order.save();
+      }
+    } catch (mailErr) {
+      console.error('Failed to send delivery email', mailErr);
+    }
 
     res.status(200).json({ message: 'Expected delivery date updated', order: populated });
   } catch (err) {

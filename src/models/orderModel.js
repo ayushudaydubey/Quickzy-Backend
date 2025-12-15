@@ -34,6 +34,8 @@ const orderSchema = new mongoose.Schema({
   etaUpdatedAt: { type: Date },
   // Whether the user has been notified of the ETA change
   etaNotified: { type: Boolean, default: false },
+  // Reference to external payment order (e.g. Razorpay order id) to make creation idempotent
+  paymentOrderId: { type: String, index: true },
 }, {
   timestamps: true,
 });
