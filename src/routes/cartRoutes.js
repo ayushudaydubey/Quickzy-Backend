@@ -54,16 +54,5 @@ cartRoutes.put('/orders/:id/ack-eta', verifyTokenMiddleware, async (req, res) =>
 });
 
 
-// Cancel an order (user) within 24 hours
-cartRoutes.put('/orders/:id/cancel', verifyTokenMiddleware, async (req, res) => {
-  try {
-    const controller = (await import('../controllers/productController.js'));
-    return controller.cancelOrderController(req, res);
-  } catch (err) {
-    console.error('cancel order route error', err);
-    return res.status(500).json({ message: 'Server error' });
-  }
-});
-
 
  export default cartRoutes

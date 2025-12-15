@@ -8,14 +8,16 @@ import {
   updateUserProfile,
 } from '../controllers/userController.js'
 import { verifyTokenMiddleware } from '../middelware/Auth.js'
+import { validateLogin, validateRegister } from '../middelware/validateInput.js'
+import { loginLimiter, registerLimiter } from '../middelware/rateLimiter.js'
 import jwt from 'jsonwebtoken';
 import userModel from '../models/userModel.js';
 
 const routes = express.Router()
 
 // Public routes
-routes.post("/register", registerUserController)
-routes.post("/login", loginUserController)
+routes.post("/register", registerLimiter, validateRegister, registerUserController)
+routes.post("/login", loginLimiter, validateLogin, loginUserController)
 
 // Protected routes
 routes.post("/logout", verifyTokenMiddleware, logoutController)

@@ -62,6 +62,19 @@ export const registerUserController = async (req, res) => {
       admin: false,
       cart: [],
     });
+    // Issue JWT and set cookie so user is authenticated immediately after registration
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.admin ? 'admin' : 'user' },
+      process.env.JWT_KEY,
+      { expiresIn: '7d' }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     return res.status(201).json({
       message: "User created successfully",
@@ -76,7 +89,9 @@ export const registerUserController = async (req, res) => {
         state: newUser.state,
         zipCode: newUser.zipCode,
         country: newUser.country,
+        admin: newUser.admin,
       },
+      token,
     });
 
   } catch (error) {
@@ -96,6 +111,11 @@ export const loginUserController = async (req, res) => {
     const userExist = await userModel.findOne({ email });
     if (!userExist) {
       return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Check if user has a password (OAuth-only users won't have one)
+    if (!userExist.password) {
+      return res.status(401).json({ error: "This account uses social login. Please use Google Sign-In" });
     }
 
     const verifyUser = await bcrypt.compare(password, userExist.password);
