@@ -14,7 +14,7 @@ admin_router.get('/orders', verifyTokenMiddleware, isAdmin, async (req, res) => 
   try {
     const orders = await Order.find({})
       .populate('userId', 'username email mobile address city state zipCode')
-      .populate('productId', 'title price image category')
+      .populate('productId', 'title price images category')
       .sort({ createdAt: -1 });
 
     res.status(200).json({ orders });
