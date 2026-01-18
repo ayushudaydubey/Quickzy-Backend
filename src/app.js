@@ -122,7 +122,7 @@ app.get(
       res.cookie('token', token, cookieOptions);
 
   // Redirect back to frontend (prefer the originally requested path stored in session)
-  const frontend = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontend =  "https://quickzy-real-2026.vercel.app/" || 'http://localhost:5173';
       let redirectTo = req.session?.oauthRedirect || frontend;
       // clear it from session
       if (req.session) req.session.oauthRedirect = null;
