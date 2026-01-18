@@ -45,7 +45,7 @@ app.use(passport.session());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://quickzy-real-2026.vercel.app/s"
+  "https://quickzy-real-2026.vercel.app/"
 ];
 
 app.use(cors({
