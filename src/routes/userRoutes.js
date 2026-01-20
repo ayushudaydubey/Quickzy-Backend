@@ -42,20 +42,32 @@ routes.put('/profile', verifyTokenMiddleware, async (req, res) => {
 
 routes.get('/me', verifyTokenMiddleware, async (req, res) => {
   try {
+    console.log('[/me] Fetching user profile:', {
+      userId: req.user?.id,
+      cookies: req.cookies ? Object.keys(req.cookies) : 'no cookies',
+      tokenExists: !!req.cookies?.token,
+    });
+
     const user = await userModel.findById(req.user.id).select('-password');
+    
     if (!user) {
+      console.error('[/me] User not found in database:', req.user.id);
       return res.status(404).json({ error: "User not found" });
     }
-    return res.status(200).json({
+
+    const responseData = {
       user: {
         id: user._id,
         username: user.username,
         email: user.email,
         admin: user.admin,
       }
-    });
+    };
+
+    console.log('[/me] Returning user:', responseData);
+    return res.status(200).json(responseData);
   } catch (error) {
-    console.error("Error in /me route:", error);
+    console.error("[/me] Error:", error);
     return res.status(500).json({ error: "Server error" });
   }
 });

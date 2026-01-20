@@ -9,6 +9,11 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Ensure NODE_ENV is set
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = process.env.RENDER ? 'production' : 'development';
+}
+
 import userRoutes from './routes/userRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
@@ -94,6 +99,8 @@ app.get(
       const email = profile?.emails?.[0]?.value;
       const username = profile?.displayName || profile?.username || email?.split('@')[0];
 
+      console.log('[Google OAuth] User authenticated:', { email, username });
+
       if (!email) {
         return res.status(400).send('No email from provider');
       }
@@ -101,23 +108,36 @@ app.get(
       // find or create user in DB (omit password for OAuth-only users)
       let user = await userModel.findOne({ email });
       if (!user) {
+        console.log('[Google OAuth] Creating new user:', email);
         user = await userModel.create({
           username,
           email,
           admin: false,
           cart: []
         });
+      } else {
+        console.log('[Google OAuth] User already exists:', email);
       }
 
       // issue JWT token (same as login route)
       const token = jwt.sign({ id: user._id, role: user.admin ? 'admin' : 'user' }, process.env.JWT_KEY, { expiresIn: '7d' });
 
+      const isProduction = process.env.NODE_ENV === 'production';
+      
       const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Lax', // Use 'Lax' to allow cookies on redirects from Google OAuth
+        secure: isProduction, // Only secure in production (requires HTTPS)
+        sameSite: 'Lax', // Lax allows cookies in cross-site contexts like OAuth redirects
         maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/', // Ensure cookie is available to all routes
       };
+
+      console.log(`[OAuth] Setting token cookie with options:`, {
+        secure: cookieOptions.secure,
+        sameSite: cookieOptions.sameSite,
+        isProduction,
+        NODE_ENV: process.env.NODE_ENV,
+      });
 
       res.cookie('token', token, cookieOptions);
 
@@ -136,6 +156,7 @@ app.get(
         redirectTo = frontend + redirectTo;
       }
 
+      console.log('[OAuth] Redirecting to:', redirectTo);
       return res.redirect(redirectTo);
     } catch (err) {
       console.error('Google callback error:', err);
