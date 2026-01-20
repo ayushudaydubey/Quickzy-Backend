@@ -115,22 +115,25 @@ app.get(
       const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+        sameSite: 'Lax', // Use 'Lax' to allow cookies on redirects from Google OAuth
         maxAge: 7 * 24 * 60 * 60 * 1000,
       };
 
       res.cookie('token', token, cookieOptions);
 
-  // Redirect back to frontend (prefer the originally requested path stored in session)
-  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-      let redirectTo = req.session?.oauthRedirect || frontend;
+      // Redirect back to frontend (prefer the originally requested path stored in session)
+      const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+      let redirectTo = req.session?.oauthRedirect;
+      
       // clear it from session
       if (req.session) req.session.oauthRedirect = null;
 
-      // If redirectTo is a relative path (starts with '/'), send user to frontend + that path
-      if (typeof redirectTo === 'string' && redirectTo.startsWith('/')) {
-        // ensure frontend doesn't end with '/'
-        const base = frontend;
+      // If no redirect path was stored, default to frontend home
+      if (!redirectTo) {
+        redirectTo = frontend;
+      } else if (typeof redirectTo === 'string' && redirectTo.startsWith('/')) {
+        // If redirectTo is a relative path, prepend the frontend URL
+        redirectTo = frontend + redirectTo;
       }
 
       return res.redirect(redirectTo);
