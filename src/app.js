@@ -28,6 +28,19 @@ import "./services/googleAuthService.js"; // registers GoogleStrategy with passp
 
 dotenv.config();
 
+// =========================
+// PRODUCTION DEBUG LOGGING
+// =========================
+if (process.env.NODE_ENV === 'production') {
+  console.log('\n🚀 [PRODUCTION MODE] Starting server...');
+  console.log(`[ENV] EMAIL: ${process.env.EMAIL ? '✓ SET' : '❌ NOT SET'}`);
+  console.log(`[ENV] EMAIL_PASS: ${process.env.EMAIL_PASS ? '✓ SET' : '❌ NOT SET'}`);
+  console.log(`[ENV] MONGO_DB_URL: ${process.env.MONGO_DB_URL ? '✓ SET' : '❌ NOT SET'}`);
+  console.log(`[ENV] RAZORPAY_KEY_ID: ${process.env.RAZORPAY_KEY_ID ? '✓ SET' : '❌ NOT SET'}`);
+  console.log(`[ENV] JWT_KEY: ${process.env.JWT_KEY ? '✓ SET' : '❌ NOT SET'}`);
+  console.log(`[ENV] FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+}
+
 const app = express();
 
 app.use(express.json());
@@ -168,6 +181,56 @@ app.get(
 // Logout
 app.get("/logout", (req, res) => {
   req.logout(() => res.redirect("/"));
+});
+
+// ===== HEALTH CHECK & DEBUG ENDPOINTS =====
+app.get("/health", (req, res) => {
+  res.status(200).json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    nodeEnv: process.env.NODE_ENV,
+    envVarsLoaded: {
+      EMAIL: !!process.env.EMAIL,
+      EMAIL_PASS: !!process.env.EMAIL_PASS,
+      MONGO_DB_URL: !!process.env.MONGO_DB_URL,
+      RAZORPAY_KEY_ID: !!process.env.RAZORPAY_KEY_ID,
+    }
+  });
+});
+
+// Test email sending
+app.get("/test-email", async (req, res) => {
+  try {
+    if (!process.env.EMAIL || !process.env.EMAIL_PASS) {
+      return res.status(400).json({ 
+        error: "Email credentials not configured",
+        details: {
+          EMAIL_set: !!process.env.EMAIL,
+          EMAIL_PASS_set: !!process.env.EMAIL_PASS
+        }
+      });
+    }
+
+    const { sendDeliveryEmail } = await import('./services/nodemailer.js');
+    await sendDeliveryEmail(
+      process.env.EMAIL, 
+      'TEST-' + Date.now(), 
+      new Date(Date.now() + 86400000),
+      { title: 'Test Product', price: 999 }
+    );
+    res.json({ 
+      success: true, 
+      message: 'Test email sent to ' + process.env.EMAIL,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[TEST-EMAIL] Error:', err);
+    res.status(500).json({ 
+      error: err.message, 
+      code: err.code,
+      details: process.env.NODE_ENV === 'production' ? undefined : err.toString()
+    });
+  }
 });
 
 // Protected route

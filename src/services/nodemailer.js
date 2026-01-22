@@ -1,10 +1,27 @@
 import nodemailer from 'nodemailer';
 
+// Log environment variables on startup (excluding sensitive values)
+if (!process.env.EMAIL) {
+  console.warn('[NODEMAILER] WARNING: EMAIL environment variable is not set. Email sending will fail.');
+}
+if (!process.env.EMAIL_PASS) {
+  console.warn('[NODEMAILER] WARNING: EMAIL_PASS environment variable is not set. Email sending will fail.');
+}
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL,
     pass: process.env.EMAIL_PASS
+  }
+});
+
+// Verify transporter connection on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('[NODEMAILER] Email service verification failed:', error.message);
+  } else {
+    console.log('[NODEMAILER] Email service is ready to send messages');
   }
 });
 

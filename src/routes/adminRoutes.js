@@ -179,13 +179,23 @@ admin_router.put('/orders/:id/delivery', verifyTokenMiddleware, isAdmin, async (
       const userEmail = populated.userId?.email;
       if (userEmail && expectedDeliveryDate) {
         // pass populated.productId so email can include product name and price
-        await sendDeliveryEmail(userEmail, populated._id, expectedDeliveryDate, populated.productId);
-        // mark that user was notified by email
-        order.etaNotified = true;
-        await order.save();
+        try {
+          await sendDeliveryEmail(userEmail, populated._id, expectedDeliveryDate, populated.productId);
+          // mark that user was notified by email
+          order.etaNotified = true;
+          await order.save();
+          console.log(`[EMAIL] Delivery confirmation sent to ${userEmail}`);
+        } catch (emailError) {
+          console.error(`[EMAIL ERROR] Failed to send delivery email to ${userEmail}:`, emailError.message);
+          // Log the full error for debugging
+          if (process.env.NODE_ENV === 'production') {
+            console.error('[EMAIL ERROR] Full error details:', emailError);
+          }
+          // Don't fail the API request if email fails, just log it
+        }
       }
     } catch (mailErr) {
-      console.error('Failed to send delivery email', mailErr);
+      console.error('[EMAIL ERROR] Unexpected error in email notification:', mailErr);
     }
 
     res.status(200).json({ message: 'Expected delivery date updated', order: populated });
