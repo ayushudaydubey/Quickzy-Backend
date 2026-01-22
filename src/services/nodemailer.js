@@ -30,6 +30,19 @@ export const sendDeliveryEmail = async (
   expectedDeliveryDate,
   product
 ) => {
+  console.log(`[NODEMAILER] Attempting to send delivery email to: ${email}, Order: ${orderId}`);
+  
+  // Validate inputs
+  if (!email) {
+    throw new Error('[NODEMAILER] Recipient email is required');
+  }
+  if (!process.env.EMAIL) {
+    throw new Error('[NODEMAILER] Sender EMAIL env variable not set');
+  }
+  if (!process.env.EMAIL_PASS) {
+    throw new Error('[NODEMAILER] EMAIL_PASS env variable not set');
+  }
+
   const formattedDate = expectedDeliveryDate
     ? new Date(expectedDeliveryDate).toLocaleString()
     : 'soon';
@@ -67,10 +80,22 @@ export const sendDeliveryEmail = async (
     </div>
   `;
 
-  await transporter.sendMail({
-    from: `"Quickzy" <${process.env.EMAIL}>`, // MUST match Gmail
-    to: email,
-    subject: 'Quickzy — Delivery Date Confirmed',
-    html,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from: `"Quickzy" <${process.env.EMAIL}>`, // MUST match Gmail
+      to: email,
+      subject: 'Quickzy — Delivery Date Confirmed',
+      html,
+    });
+    console.log(`[NODEMAILER] ✓ Email sent successfully. Message ID: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.error(`[NODEMAILER] ✗ Failed to send email:`, {
+      code: error.code,
+      message: error.message,
+      command: error.command,
+      response: error.response,
+    });
+    throw error;
+  }
 };
