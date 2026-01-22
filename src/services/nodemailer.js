@@ -1,56 +1,74 @@
 import nodemailer from 'nodemailer';
 
-// Log environment variables on startup (excluding sensitive values)
+// Log env availability (no secrets)
 if (!process.env.EMAIL) {
-  console.warn('[NODEMAILER] WARNING: EMAIL environment variable is not set. Email sending will fail.');
+  console.warn('[NODEMAILER] EMAIL is not set');
 }
 if (!process.env.EMAIL_PASS) {
-  console.warn('[NODEMAILER] WARNING: EMAIL_PASS environment variable is not set. Email sending will fail.');
+  console.warn('[NODEMAILER] EMAIL_PASS is not set');
 }
 
+// IMPORTANT: DO NOT use `service: gmail` on Render
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // must be true for 465
   auth: {
     user: process.env.EMAIL,
-    pass: process.env.EMAIL_PASS
-  }
+    pass: process.env.EMAIL_PASS,
+  },
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
+  socketTimeout: 20000,
 });
 
-// Verify transporter connection on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('[NODEMAILER] Email service verification failed:', error.message);
-  } else {
-    console.log('[NODEMAILER] Email service is ready to send messages');
-  }
-});
+// ❌ REMOVE transporter.verify() — causes timeout on Render
 
-export const sendDeliveryEmail = async (email, orderId, expectedDeliveryDate, product) => {
-  const formattedDate = expectedDeliveryDate ? new Date(expectedDeliveryDate).toLocaleString() : 'soon';
+export const sendDeliveryEmail = async (
+  email,
+  orderId,
+  expectedDeliveryDate,
+  product
+) => {
+  const formattedDate = expectedDeliveryDate
+    ? new Date(expectedDeliveryDate).toLocaleString()
+    : 'soon';
+
   const productTitle = product?.title || 'your product';
-  const productPrice = typeof product?.price !== 'undefined' ? product.price : null;
+  const productPrice = product?.price;
+
   let priceText = '';
-  try {
-    if (productPrice !== null) {
-      priceText = ` — ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(productPrice)}`;
+  if (typeof productPrice === 'number') {
+    try {
+      priceText = ` — ${new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+      }).format(productPrice)}`;
+    } catch {
+      priceText = ` — ₹${productPrice}`;
     }
-  } catch (e) {
-    priceText = productPrice !== null ? ` — ₹${productPrice}` : '';
   }
 
   const html = `
-    <div style="font-family: Arial, Helvetica, sans-serif; color: #111">
+    <div style="font-family: Arial, Helvetica, sans-serif; color:#111">
       <h2>Quickzy — Delivery Confirmed ✅</h2>
       <p>Hi,</p>
-      <p>Your order <strong>${orderId}</strong> for <strong>${productTitle}</strong>${priceText} now has an expected delivery date of <strong>${formattedDate}</strong>.</p>
-      <p>Thank you for shopping with <strong>Quickzy</strong> — we’ll notify you if anything changes.</p>
+      <p>
+        Your order <strong>${orderId}</strong> for
+        <strong>${productTitle}</strong>${priceText}
+        has an expected delivery date of
+        <strong>${formattedDate}</strong>.
+      </p>
+      <p>Thank you for shopping with <strong>Quickzy</strong>.</p>
       <hr />
-      <p style="font-size:12px;color:#666">If you have questions, reply to this email.</p>
+      <p style="font-size:12px;color:#666">
+        This email was sent from an automated address.
+      </p>
     </div>
   `;
 
   await transporter.sendMail({
-    from: 'Quickzy <no-reply@quickzy.com>',
+    from: `"Quickzy" <${process.env.EMAIL}>`, // MUST match Gmail
     to: email,
     subject: 'Quickzy — Delivery Date Confirmed',
     html,
