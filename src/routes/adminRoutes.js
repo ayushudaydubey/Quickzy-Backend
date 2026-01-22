@@ -152,8 +152,15 @@ admin_router.put('/orders/:id/delivery', verifyTokenMiddleware, isAdmin, async (
     const { id } = req.params;
     const { expectedDeliveryDate } = req.body;
 
+    console.log(`[ADMIN] 📅 Updating delivery date for order: ${id}`);
+    console.log(`[ADMIN] Expected Delivery Date: ${expectedDeliveryDate}`);
+
     const order = await Order.findById(id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!order) {
+      console.warn(`[ADMIN] ⚠️ Order not found: ${id}`);
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
     order.expectedDeliveryDate = expectedDeliveryDate ? new Date(expectedDeliveryDate) : null;
     // mark that admin explicitly set ETA
     order.adminSetEta = !!expectedDeliveryDate;
@@ -175,33 +182,53 @@ admin_router.put('/orders/:id/delivery', verifyTokenMiddleware, isAdmin, async (
       .populate('productId', 'title price image category');
 
     // send email notification to user about confirmed delivery date
-    try {
-      const userEmail = populated.userId?.email;
-      if (userEmail && expectedDeliveryDate) {
-        // pass populated.productId so email can include product name and price
-        try {
-          await sendDeliveryEmail(userEmail, populated._id, expectedDeliveryDate, populated.productId);
-          // mark that user was notified by email
-          order.etaNotified = true;
-          await order.save();
-          console.log(`[EMAIL] Delivery confirmation sent to ${userEmail}`);
-        } catch (emailError) {
-          console.error(`[EMAIL ERROR] Failed to send delivery email to ${userEmail}:`, emailError.message);
-          // Log the full error for debugging
-          if (process.env.NODE_ENV === 'production') {
-            console.error('[EMAIL ERROR] Full error details:', emailError);
-          }
-          // Don't fail the API request if email fails, just log it
+    if (expectedDeliveryDate && populated.userId?.email) {
+      const userEmail = populated.userId.email;
+      console.log(`[ADMIN] 📧 Attempting to send delivery confirmation email to: ${userEmail}`);
+      
+      try {
+        await sendDeliveryEmail(userEmail, populated._id, expectedDeliveryDate, populated.productId);
+        
+        // mark that user was notified by email
+        order.etaNotified = true;
+        await order.save();
+        
+        console.log(`[ADMIN] ✅ Delivery confirmation email sent successfully to ${userEmail}`);
+        console.log(`[ADMIN] Return response with email_sent flag`);
+      } catch (emailError) {
+        console.error(`[ADMIN] ❌ Failed to send delivery email to ${userEmail}`);
+        console.error(`[ADMIN] Error:`, emailError.message);
+        
+        // Log full error details in production
+        if (process.env.NODE_ENV === 'production') {
+          console.error('[ADMIN] Full error details:', {
+            code: emailError.code,
+            message: emailError.message,
+            command: emailError.command,
+            response: emailError.response,
+          });
         }
+        
+        // Return error but with order data so admin knows update happened
+        // Only email failed
+        return res.status(200).json({
+          message: 'Delivery date updated but email notification failed',
+          order: populated,
+          email_sent: false,
+          email_error: emailError.message,
+        });
       }
-    } catch (mailErr) {
-      console.error('[EMAIL ERROR] Unexpected error in email notification:', mailErr);
     }
 
-    res.status(200).json({ message: 'Expected delivery date updated', order: populated });
+    res.status(200).json({ 
+      message: 'Expected delivery date updated and email sent', 
+      order: populated,
+      email_sent: expectedDeliveryDate ? true : false,
+    });
   } catch (err) {
-    console.error('admin update expectedDeliveryDate error', err);
-    res.status(500).json({ message: 'Failed to update expected delivery date' });
+    console.error('[ADMIN] ❌ Error updating expectedDeliveryDate:', err.message);
+    console.error('[ADMIN] Stack:', err.stack);
+    res.status(500).json({ message: 'Failed to update expected delivery date', error: err.message });
   }
 });
 
